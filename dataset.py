@@ -21,18 +21,18 @@ def get_dataset(dataset_name, if_download, batch_size, num_workers):
 
     if dataset_name == 'cifar10':
         print('cifar10')
-        trainset = torchvision.datasets.CIFAR10(root=dir_name, train=True, download=if_download, transform=transform_train)
+        trainset = torchvision.datasets.CIFAR10(root=dir_name, train=True, download=True, transform=transform_train)
         trainloader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
-        testset = torchvision.datasets.CIFAR10(root=dir_name, train=False, download=if_download, transform=transform_test)
+        testset = torchvision.datasets.CIFAR10(root=dir_name, train=False, download=True, transform=transform_test)
         testloader = data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     
     if dataset_name == 'mnist':
         print('mnist')
-        trainset = torchvision.datasets.MNIST(root=dir_name, train=True, download=if_download, transform=transform_train)
+        trainset = torchvision.datasets.MNIST(root=dir_name, train=True, download=True, transform=transform_train)
         trainloader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
-        testset = torchvision.datasets.MNIST(root=dir_name, train=False, download=if_download, transform=transform_test)
+        testset = torchvision.datasets.MNIST(root=dir_name, train=False, download=True, transform=transform_test)
         testloader = data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     if dataset_name == 'chest_xray':
