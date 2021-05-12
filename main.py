@@ -145,33 +145,79 @@ if __name__ == '__main__':
     # get data for training according to the specified dataset name
     trainset, trainloader, testset, testloader = get_dataset(args.dataset, args.download, args.batch_size, args.num_workers)
     
+    if args.dataset == 'cifar10':
+        args.num_features = 3
+        args.img_height = 32
+        args.img_width = 32
+    elif args.dataset == 'mnist':
+        args.num_features = 1
+        args.img_height = 28
+        args.img_width = 28
+    elif args.dataset == 'chest_xray':
+        args.num_features = 3
+        args.img_height = 32
+        args.img_width = 32
+    else:
+        sys.exit('Incorrect dataset name')
+
     # Model
     print('Building model..')
-    model = Glow(num_channels=args.hidden_layers,
+    model = GlowModel(num_channels=args.hidden_layers,
                num_levels=args.num_levels,
                num_steps=args.num_steps)
     model = model.to(device)
 
     start_epoch = 0
     if args.load_model:
-        # Load checkpoint.
-        print('Resuming from checkpoint at ckpts/best.pth.tar...')
-        assert os.path.isdir('ckpts'), 'Error: no checkpoint directory found!'
-        checkpoint = torch.load('ckpts/best.pth.tar')
-        model.load_state_dict(checkpoint['model'])
-        best_loss = checkpoint['test_loss']
-        start_epoch = checkpoint['epoch']
-        global_step = start_epoch * len(trainset)
+        if args.ckpt_path == "NONE":
+            # print("No path for the checkpoint file has been specified. Training will start without any checkpoint.")
+            sys.exit("Chechpoint file must be specified when continuing training.")
+        # check if file exists
+        if not os.path.isfile(args.ckpt_path):
+            # print("The checkpoint path is incorrect! Training will start without any checkpoint.")
+            sys.exit("Path to the checkpoint file is incorrect, specify correct path to the file.")
+        # use save cofiguration
+        else:
+            checkpoint_loaded = torch.load(args.ckpt_path)
+            model.load_state_dict(checkpoint_loaded['state_dict'])
+            optimizer.load_state_dict(checkpoint_loaded['optim'])
+            scheduler.load_state_dict(checkpoint_loaded['sched'])
+            best_loss = checkpoint_loaded['test_loss']
+            starting_epoch = checkpoint_loaded['epoch']
+            global_step = starting_epoch * len(trainset)
+            print('Loading checkpoint file with best loss: {}, starting epoch: {}, and global step: {}'.format(best_loss, starting_epoch, global_step))
+        print("resuming training from checkpoint file: {}".format(args.ckpt_path))
+    else:
+        # if training from scratch then init default values
+        # initialising variables for keeping track of the global step and the best loss so far
+        global_step = 0
+        best_loss = math.inf
+        # best_loss = 0
+        starting_epoch = 1
 
     loss_fn = utilities.NLLLoss().to(device)
     # optimizer takes care of updating the parameters of the model after each batch
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     # scheduler takes care of the adjustment of the learning rate
     scheduler = sched.LambdaLR(optimizer, lambda s: min(1., s / args.sched_warmup))
-
-
-    for epoch in range(start_epoch, start_epoch + args.epochs):
-        train(epoch, model, trainloader, device, optimizer, scheduler,
-              loss_fn, args.max_grad_norm)
-        test(epoch, model, testloader, device, loss_fn, args)
-
+    # run in training mode
+    if args.usage_mode == 'train':
+        # training loop repeating for a specified number of epochs; starts from #1 in order to start naming epochs from 1
+        print("Starting training of the Glow model")
+        for epoch in range(starting_epoch, starting_epoch + args.epochs + 1):
+            print("=============> EPOCH [{} / {}]".format(epoch, args.epochs))
+            
+            # each epoch consist of training part and testing part
+            train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, args.max_grad_norm)
+            test(epoch, model, testloader, device, loss_fn, args)
+        print("the training is finished.")
+    # run in sampling mode
+    elif args.usage_mode == 'sample':
+        print('sampling')
+        images = sample(model, device, args)
+        path_to_images = 'samples/{}/epoch_{}'.format(args.dataset, starting_epoch) # custom name for each epoch
+        save_sampled_images(starting_epoch, images, args.num_samples, path_to_images, if_grid=True)
+    # incorrect mode
+    else:
+        model.describe()
+        sys.exit('Incorrect usage mode! Try --usage_mode train/sample')
