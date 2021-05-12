@@ -46,8 +46,8 @@ class ActivationNormalisation(nn.Module):
             return
 
         with torch.no_grad():
-            bias = -1 * utilities.mean_dim(x.clone(), dim=[0, 2, 3], keepdims=True)
-            v = utilities.mean_dim((x.clone() + bias) ** 2, dim=[0, 2, 3], keepdims=True)
+            bias = -1 * utilities.mean_over_dimensions(x.clone(), dim=[0, 2, 3], keepdims=True)
+            v = utilities.mean_over_dimensions((x.clone() + bias) ** 2, dim=[0, 2, 3], keepdims=True)
             logs = (self.scale / (v.sqrt() + self.eps)).log()
             self.bias.data.copy_(bias.data)
             self.logs.data.copy_(logs.data)

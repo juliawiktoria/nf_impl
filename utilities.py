@@ -5,31 +5,14 @@ import torch.nn.utils as utils
 
 
 @torch.no_grad()
-def sample(net, batch_size, device):
-    """Sample from RealNVP model.
-
-    Args:
-        net (torch.nn.DataParallel): The RealNVP model wrapped in DataParallel.
-        batch_size (int): Number of samples to generate.
-        device (torch.device): Device to use.
-    """
+def sample(model, batch_size, device):
     z = torch.randn((batch_size, 3, 32, 32), dtype=torch.float32, device=device)
-    x, _ = net(z, reverse=True)
-    x = torch.sigmoid(x)
+    images, _ = model(z, reverse=True)
+    images = torch.sigmoid(x)
 
-    return x
+    return images
 
-def mean_dim(tensor, dim=None, keepdims=False):
-    """Take the mean along multiple dimensions.
-
-    Args:
-        tensor (torch.Tensor): Tensor of values to average.
-        dim (list): List of dimensions along which to take the mean.
-        keepdims (bool): Keep dimensions rather than squeezing.
-
-    Returns:
-        mean (torch.Tensor): New tensor of mean value(s).
-    """
+def mean_over_dimensions(tensor, dim=None, keepdims=False):
     if dim is None:
         return tensor.mean()
     else:

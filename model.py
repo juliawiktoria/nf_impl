@@ -87,19 +87,19 @@ class _FlowStep(nn.Module):
         super(_FlowStep, self).__init__()
 
         # Activation normalization, invertible 1x1 convolution, affine coupling
-        self.norm = ActNorm(in_channels, return_ldj=True)
-        self.conv = InvConv(in_channels)
-        self.coup = Coupling(in_channels // 2, mid_channels)
+        self.normalisation = ActivationNormalisation(in_channels, return_ldj=True)
+        self.convolution = Invertible1x1Conv(in_channels)
+        self.coupling = AffineCoupling(in_channels // 2, mid_channels)
 
     def forward(self, x, sldj=None, reverse=False):
-        if reverse:
-            x, sldj = self.coup(x, sldj, reverse)
-            x, sldj = self.conv(x, sldj, reverse)
-            x, sldj = self.norm(x, sldj, reverse)
+        if not reverse:
+            x, sldj = self.normalisation(x, sldj, reverse)
+            x, sldj = self.convolution(x, sldj, reverse)
+            x, sldj = self.coupling(x, sldj, reverse)
         else:
-            x, sldj = self.norm(x, sldj, reverse)
-            x, sldj = self.conv(x, sldj, reverse)
-            x, sldj = self.coup(x, sldj, reverse)
+            x, sldj = self.coupling(x, sldj, reverse)
+            x, sldj = self.convolution(x, sldj, reverse)
+            x, sldj = self.normalisation(x, sldj, reverse)
 
         return x, sldj
 
