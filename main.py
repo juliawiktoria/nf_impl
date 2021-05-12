@@ -17,16 +17,16 @@ from dataset import get_dataset
 import math
 
 @torch.enable_grad()
-def train(epoch, net, trainloader, device, optimizer, scheduler, loss_fn, max_grad_norm):
+def train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, max_grad_norm):
     global global_step
     print('\nEpoch: %d' % epoch)
-    net.train()
+    model.train()
     loss_meter = utilities.AverageMeter()
     with tqdm(total=len(trainloader.dataset)) as progress_bar:
         for x, _ in trainloader:
             x = x.to(device)
             optimizer.zero_grad()
-            z, sldj = net(x, reverse=False)
+            z, sldj = model(x, reverse=False)
             loss = loss_fn(z, sldj)
             loss_meter.update(loss.item(), x.size(0))
             loss.backward()
@@ -43,14 +43,15 @@ def train(epoch, net, trainloader, device, optimizer, scheduler, loss_fn, max_gr
 
 
 @torch.no_grad()
-def test(epoch, net, testloader, device, loss_fn, num_samples):
+def test(epoch, model, testloader, device, loss_fn, num_samples):
     global best_loss
-    net.eval()
+    model.eval()
+    best = False
     loss_meter = utilities.AverageMeter()
     with tqdm(total=len(testloader.dataset)) as progress_bar:
         for x, _ in testloader:
             x = x.to(device)
-            z, sldj = net(x, reverse=False)
+            z, sldj = model(x, reverse=False)
             loss = loss_fn(z, sldj)
             loss_meter.update(loss.item(), x.size(0))
             progress_bar.set_postfix(nll=loss_meter.avg,
@@ -61,7 +62,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
     if loss_meter.avg < best_loss:
         print('Saving...')
         state = {
-            'net': net.state_dict(),
+            'model': model.state_dict(),
             'test_loss': loss_meter.avg,
             'epoch': epoch,
         }
@@ -70,7 +71,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
         best_loss = loss_meter.avg
 
     # Save samples and data
-    images = utilities.sample(net, num_samples, device)
+    images = utilities.sample(model, num_samples, device)
     os.makedirs('samples/epoch_{}'.format(epoch), exist_ok=True)
     for i in range(images.size(0)):
             torchvision.utils.save_image(images[i, :, :, :], 'samples/epoch_{}/img_{}.png'.format(epoch, i))
@@ -129,10 +130,10 @@ if __name__ == '__main__':
     
     # Model
     print('Building model..')
-    net = Glow(num_channels=args.num_features,
+    model = Glow(num_channels=args.num_features,
                num_levels=args.num_levels,
                num_steps=args.num_steps)
-    net = net.to(device)
+    model = model.to(device)
 
     start_epoch = 0
     if args.load_model:
@@ -140,17 +141,17 @@ if __name__ == '__main__':
         print('Resuming from checkpoint at ckpts/best.pth.tar...')
         assert os.path.isdir('ckpts'), 'Error: no checkpoint directory found!'
         checkpoint = torch.load('ckpts/best.pth.tar')
-        net.load_state_dict(checkpoint['net'])
+        model.load_state_dict(checkpoint['model'])
         best_loss = checkpoint['test_loss']
         start_epoch = checkpoint['epoch']
         global_step = start_epoch * len(trainset)
 
     loss_fn = utilities.NLLLoss().to(device)
-    optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = sched.LambdaLR(optimizer, lambda s: min(1., s / args.sched_warmup))
 
     for epoch in range(start_epoch, start_epoch + args.epochs):
-        train(epoch, net, trainloader, device, optimizer, scheduler,
+        train(epoch, model, trainloader, device, optimizer, scheduler,
               loss_fn, args.max_grad_norm)
-        test(epoch, net, testloader, device, loss_fn, args.num_samples)
+        test(epoch, model, testloader, device, loss_fn, args.num_samples)
 

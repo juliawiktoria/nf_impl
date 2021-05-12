@@ -2,23 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from layers import ActNorm, Coupling, InvConv
+from layers import ActivationNormalisation, AffineCoupling, Invertible1x1Conv
 
 
 class Glow(nn.Module):
-    """Glow Model
-
-    Based on the paper:
-    "Glow: Generative Flow with Invertible 1x1 Convolutions"
-    by Diederik P. Kingma, Prafulla Dhariwal
-    (https://arxiv.org/abs/1807.03039).
-
-    Args:
-        num_channels (int): Number of channels in middle convolution of each
-            step of flow.
-        num_levels (int): Number of levels in the entire model.
-        num_steps (int): Number of steps of flow for each level.
-    """
     def __init__(self, num_channels, num_levels, num_steps):
         super(Glow, self).__init__()
 
@@ -48,18 +35,6 @@ class Glow(nn.Module):
         return x, sldj
 
     def _pre_process(self, x):
-        """Dequantize the input image `x` and convert to logits.
-
-        See Also:
-            - Dequantization: https://arxiv.org/abs/1511.01844, Section 3.1
-            - Modeling logits: https://arxiv.org/abs/1605.08803, Section 4.1
-
-        Args:
-            x (torch.Tensor): Input image.
-
-        Returns:
-            y (torch.Tensor): Dequantized logits of `x`.
-        """
         y = (x * 255. + torch.rand_like(x)) / 256.
         y = (2 * y - 1) * self.bounds
         y = (y + 1) / 2
@@ -74,14 +49,6 @@ class Glow(nn.Module):
 
 
 class _Glow(nn.Module):
-    """Recursive constructor for a Glow model. Each call creates a single level.
-
-    Args:
-        in_channels (int): Number of channels in the input.
-        mid_channels (int): Number of channels in hidden layers of each step.
-        num_levels (int): Number of levels to construct. Counter for recursion.
-        num_steps (int): Number of steps of flow for each level.
-    """
     def __init__(self, in_channels, mid_channels, num_levels, num_steps):
         super(_Glow, self).__init__()
         self.steps = nn.ModuleList([_FlowStep(in_channels=in_channels,
@@ -138,16 +105,6 @@ class _FlowStep(nn.Module):
 
 
 def squeeze(x, reverse=False):
-    """Trade spatial extent for channels. In forward direction, convert each
-    1x4x4 volume of input into a 4x1x1 volume of output.
-
-    Args:
-        x (torch.Tensor): Input to squeeze or unsqueeze.
-        reverse (bool): Reverse the operation, i.e., unsqueeze.
-
-    Returns:
-        x (torch.Tensor): Squeezed or unsqueezed tensor.
-    """
     b, c, h, w = x.size()
     if reverse:
         # Unsqueeze
