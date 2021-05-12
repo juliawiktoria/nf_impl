@@ -36,7 +36,7 @@ def train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, max_
             scheduler.step(global_step)
 
             progress_bar.set_postfix(nll=loss_meter.avg,
-                                     bpd=utilities.bits_per_dim(x, loss_meter.avg),
+                                     bpd=utilities.bits_per_dimension(x, loss_meter.avg),
                                      lr=optimizer.param_groups[0]['lr'])
             progress_bar.update(x.size(0))
             global_step += x.size(0)
@@ -55,7 +55,7 @@ def test(epoch, model, testloader, device, loss_fn, args):
             loss = loss_fn(z, sldj)
             loss_meter.update(loss.item(), x.size(0))
             progress_bar.set_postfix(nll=loss_meter.avg,
-                                     bpd=utilities.bits_per_dim(x, loss_meter.avg))
+                                     bpd=utilities.bits_per_dimension(x, loss_meter.avg))
             progress_bar.update(x.size(0))
 
     # Save checkpoint
