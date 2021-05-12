@@ -150,7 +150,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
 
     # Save samples and data
     images = sample(net, num_samples, device)
-    os.makedirs('samples', exist_ok=True)
+    os.makedirs('samples/epoch_{}'.format(epoch), exist_ok=True)
     for i in range(images.size(0)):
             torchvision.utils.save_image(images[i, :, :, :], 'samples/epoch_{}/img_{}.png'.format(epoch, i))
     os.makedirs('grids', exist_ok=True)
@@ -171,8 +171,8 @@ if __name__ == '__main__':
     parser.add_argument('--max_grad_norm', type=float, default=-1., help='Max gradient norm for clipping')
     parser.add_argument('--num_channels', '-C', default=512, type=int, help='Number of channels in hidden layers')
     parser.add_argument('--num_levels', '-L', default=3, type=int, help='Number of levels in the Glow model')
-    parser.add_argument('--num_steps', '-K', default=32, type=int, help='Number of steps of flow in each level')
-    parser.add_argument('--num_epochs', default=100, type=int, help='Number of epochs to train')
+    parser.add_argument('--num_steps', '-K', default=16, type=int, help='Number of steps of flow in each level')
+    parser.add_argument('--num_epochs', default=400, type=int, help='Number of epochs to train')
     parser.add_argument('--num_samples', default=64, type=int, help='Number of samples at test time')
     parser.add_argument('--num_workers', default=8, type=int, help='Number of data loader threads')
     parser.add_argument('--resume', type=str2bool, default=False, help='Resume from checkpoint')
