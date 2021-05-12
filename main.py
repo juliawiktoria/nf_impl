@@ -43,7 +43,7 @@ def train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, max_
 
 
 @torch.no_grad()
-def test(epoch, model, testloader, device, loss_fn, num_samples):
+def test(epoch, model, testloader, device, loss_fn, args):
     global best_loss
     model.eval()
     best = False
@@ -71,7 +71,7 @@ def test(epoch, model, testloader, device, loss_fn, num_samples):
         best_loss = loss_meter.avg
 
     # Save samples and data
-    images = utilities.sample(model, num_samples, device)
+    images = utilities.sample(model, device, args)
     os.makedirs('samples/epoch_{}'.format(epoch), exist_ok=True)
     for i in range(images.size(0)):
             torchvision.utils.save_image(images[i, :, :, :], 'samples/epoch_{}/img_{}.png'.format(epoch, i))
@@ -153,5 +153,5 @@ if __name__ == '__main__':
     for epoch in range(start_epoch, start_epoch + args.epochs):
         train(epoch, model, trainloader, device, optimizer, scheduler,
               loss_fn, args.max_grad_norm)
-        test(epoch, model, testloader, device, loss_fn, args.num_samples)
+        test(epoch, model, testloader, device, loss_fn, args)
 

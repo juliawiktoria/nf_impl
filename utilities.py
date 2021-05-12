@@ -5,11 +5,10 @@ import torch.nn.utils as utils
 
 
 @torch.no_grad()
-def sample(model, batch_size, device):
-    z = torch.randn((batch_size, 3, 32, 32), dtype=torch.float32, device=device)
-    images, _ = model(z, reverse=True)
+def sample(model, device, args):
+    sampled_tensor = torch.randn((args.num_samples, args.num_features, args.img_height, args.img_width), dtype=torch.float32, device=device)
+    x, _ = model(sampled_tensor, reverse=True)
     images = torch.sigmoid(x)
-
     return images
 
 def mean_over_dimensions(tensor, dim=None, keepdims=False):
