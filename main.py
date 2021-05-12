@@ -1,20 +1,23 @@
-import argparse
-import numpy as np
+## Standard libraries
 import os
-import random
+import time
+import argparse
+import sys
+import math
+
+# pytorch
 import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as sched
-import torch.backends.cudnn as cudnn
-import torch.utils.data as data
-import torchvision
-import torchvision.transforms as transforms
 
-import utilities
-from model import Glow
+# Torchvision
+import torchvision
+
+from model import GlowModel
+from utilities import *
+from dataset import *
 from tqdm import tqdm
-from dataset import get_dataset
-import math
+
 
 @torch.enable_grad()
 def train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, max_grad_norm):
