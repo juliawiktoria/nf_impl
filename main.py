@@ -21,7 +21,7 @@ def train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, max_
     global global_step
     print('\nEpoch: %d' % epoch)
     model.train()
-    loss_meter = utilities.AverageMeter()
+    loss_meter = utilities.AvgMeter()
     with tqdm(total=len(trainloader.dataset)) as progress_bar:
         for x, _ in trainloader:
             x = x.to(device)
@@ -47,7 +47,7 @@ def test(epoch, model, testloader, device, loss_fn, args):
     global best_loss
     model.eval()
     best = False
-    loss_meter = utilities.AverageMeter()
+    loss_meter = utilities.AvgMeter()
     with tqdm(total=len(testloader.dataset)) as progress_bar:
         for x, _ in testloader:
             x = x.to(device)
@@ -60,25 +60,25 @@ def test(epoch, model, testloader, device, loss_fn, args):
 
     # Save checkpoint
     if loss_meter.avg < best_loss:
-        print('Saving...')
-        state = {
-            'model': model.state_dict(),
-            'test_loss': loss_meter.avg,
-            'epoch': epoch,
-        }
-        os.makedirs('ckpts', exist_ok=True)
-        torch.save(state, 'ckpts/best.pth.tar')
+        print('Updating best loss: [{}] -> [{}]'.format(best_loss, loss_meter.avg))
         best_loss = loss_meter.avg
+        # indicating this epoch has achieved the best loss value so far
+        best = True
 
-    # Save samples and data
-    images = utilities.sample(model, device, args)
-    os.makedirs('grids', exist_ok=True)
-    images_concat = torchvision.utils.make_grid(images, nrow=int(args.num_samples ** 0.5), padding=2, pad_value=255)
-    torchvision.utils.save_image(images_concat, 'grids/epoch_{}.png'.format(epoch))
-    os.makedirs('samples/epoch_{}'.format(epoch), exist_ok=True)
-    for i in range(images.size(0)):
-            torchvision.utils.save_image(images[i, :, :, :], 'samples/epoch_{}/img_{}.png'.format(epoch, i))
-    
+    # save checkpoint file on interval
+    if epoch % args.ckpt_interval == 0:
+        print('Saving checkpoint file from the epoch #{}'.format(epoch))
+        utilities.save_model_checkpoint(model, epoch, args.dataset, loss_meter.avg, best)
+
+    # Save samples and data on the specified interval
+    if epoch % args.img_interval == 0:
+        print("Saving images from the epoch #{}".format(epoch))
+        os.makedirs('grids', exist_ok=True)
+        # getting a sample of n images
+        images = utilities.sample(model, device, args)
+        # creating a path to an epoch directory so the images are sorted by epoch
+        path_to_images = 'samples/epoch_{}'.format(epoch)
+        utilities.save_sampled_images(epoch, images, args.num_samples, path_to_images)
 
 
 if __name__ == '__main__':
@@ -112,7 +112,6 @@ if __name__ == '__main__':
     parser.add_argument('--ckpt_interval', type=int, default=1, help='Create a checkpoint file every N epochs.')
     parser.add_argument('--img_interval', type=int, default=1, help='Generate images every N epochs.')
     parser.add_argument('--ckpt_path', type=str, default='NONE', help='Path to the checkpoint file to use.')
-    parser.add_argument('--grid_interval', type=int, default=1, help='How often to save images in a nice grid.')
     # image params 
     parser.add_argument('--num_features', type=int, default=3, help='Number of spatial channels of an image [cifar10: 3 / mnist: 1].')
     parser.add_argument('--img_height', type=int, default=32, help='Image height in pixels [cifar10: 32 / mnist: 28]')
@@ -131,7 +130,7 @@ if __name__ == '__main__':
     
     # Model
     print('Building model..')
-    model = Glow(num_channels=args.num_features,
+    model = Glow(num_channels=args.hidden_layers,
                num_levels=args.num_levels,
                num_steps=args.num_steps)
     model = model.to(device)
@@ -148,8 +147,11 @@ if __name__ == '__main__':
         global_step = start_epoch * len(trainset)
 
     loss_fn = utilities.NLLLoss().to(device)
+    # optimizer takes care of updating the parameters of the model after each batch
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    # scheduler takes care of the adjustment of the learning rate
     scheduler = sched.LambdaLR(optimizer, lambda s: min(1., s / args.sched_warmup))
+
 
     for epoch in range(start_epoch, start_epoch + args.epochs):
         train(epoch, model, trainloader, device, optimizer, scheduler,
