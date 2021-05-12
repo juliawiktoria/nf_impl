@@ -86,7 +86,7 @@ class ActivationNormalisation(nn.Module):
             x, ldj = self._scale(x, ldj, reverse)
             x = self._center(x, reverse)
 
-        return x
+        return x, ldj
 
 class AffineCoupling(nn.Module):
     def __init__(self, in_channels, mid_channels):
