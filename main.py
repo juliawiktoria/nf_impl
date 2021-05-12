@@ -45,9 +45,6 @@ def main(args):
                num_levels=args.num_levels,
                num_steps=args.num_steps)
     net = net.to(device)
-    if device == 'cuda':
-        net = torch.nn.DataParallel(net, args.gpu_ids)
-        cudnn.benchmark = args.benchmark
 
     start_epoch = 0
     if args.resume:
