@@ -141,8 +141,6 @@ if __name__ == '__main__':
         assert os.path.isdir('ckpts'), 'Error: no checkpoint directory found!'
         checkpoint = torch.load('ckpts/best.pth.tar')
         net.load_state_dict(checkpoint['net'])
-        global best_loss
-        global global_step
         best_loss = checkpoint['test_loss']
         start_epoch = checkpoint['epoch']
         global_step = start_epoch * len(trainset)
