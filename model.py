@@ -87,7 +87,7 @@ class _FlowStep(nn.Module):
         super(_FlowStep, self).__init__()
 
         # Activation normalization, invertible 1x1 convolution, affine coupling
-        self.normalisation = ActivationNormalisation(in_channels, return_ldj=True)
+        self.normalisation = ActivationNormalisation(in_channels)
         self.convolution = Invertible1x1Conv(in_channels)
         self.coupling = AffineCoupling(in_channels // 2, mid_channels)
 
