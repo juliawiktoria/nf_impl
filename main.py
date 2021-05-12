@@ -72,12 +72,13 @@ def test(epoch, model, testloader, device, loss_fn, args):
 
     # Save samples and data
     images = utilities.sample(model, device, args)
-    os.makedirs('samples/epoch_{}'.format(epoch), exist_ok=True)
-    for i in range(images.size(0)):
-            torchvision.utils.save_image(images[i, :, :, :], 'samples/epoch_{}/img_{}.png'.format(epoch, i))
     os.makedirs('grids', exist_ok=True)
     images_concat = torchvision.utils.make_grid(images, nrow=int(args.num_samples ** 0.5), padding=2, pad_value=255)
     torchvision.utils.save_image(images_concat, 'grids/epoch_{}.png'.format(epoch))
+    os.makedirs('samples/epoch_{}'.format(epoch), exist_ok=True)
+    for i in range(images.size(0)):
+            torchvision.utils.save_image(images[i, :, :, :], 'samples/epoch_{}/img_{}.png'.format(epoch, i))
+    
 
 
 if __name__ == '__main__':
