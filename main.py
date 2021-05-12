@@ -89,7 +89,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='glow', help='Name of the model in use.')
     parser.add_argument('--hidden_layers', type=int, default=512, help='Number of channels.')
     parser.add_argument('--num_levels', type=int, default=3, help='Number of flow levels.')
-    parser.add_argument('--num_steps', type=int, default=32, help='Number of flow steps.')
+    parser.add_argument('--num_steps', type=int, default=3, help='Number of flow steps.')
     # optimizer and scheduler parameters
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate for the optimizer.')
     parser.add_argument('--max_grad_norm', type=float, default=-1., help="Maximum value of gradient.")
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('--sched_warmup', type=int, default=500000, help='Warm-up period for scheduler.')
     # training parameters
     parser.add_argument('--no_gpu', action='store_true', default=False, help='Flag indicating no GPU use.')
-    parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs.')
+    parser.add_argument('--epochs', type=int, default=3, help='Number of training epochs.')
     parser.add_argument('--load_model', action='store_true', default=False, help='Flag indicating loading a model from specified checkpoint.')
     parser.add_argument('--num_samples', type=int, default=16, help='Number of samples.')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training.')
@@ -129,13 +129,13 @@ if __name__ == '__main__':
     
     # Model
     print('Building model..')
-    net = Glow(num_channels=args.num_channels,
+    net = Glow(num_channels=args.num_features,
                num_levels=args.num_levels,
                num_steps=args.num_steps)
     net = net.to(device)
 
     start_epoch = 0
-    if args.resume:
+    if args.load_model:
         # Load checkpoint.
         print('Resuming from checkpoint at ckpts/best.pth.tar...')
         assert os.path.isdir('ckpts'), 'Error: no checkpoint directory found!'
@@ -149,9 +149,9 @@ if __name__ == '__main__':
 
     loss_fn = utilities.NLLLoss().to(device)
     optimizer = optim.Adam(net.parameters(), lr=args.lr)
-    scheduler = sched.LambdaLR(optimizer, lambda s: min(1., s / args.warm_up))
+    scheduler = sched.LambdaLR(optimizer, lambda s: min(1., s / args.sched_warmup))
 
-    for epoch in range(start_epoch, start_epoch + args.num_epochs):
+    for epoch in range(start_epoch, start_epoch + args.epochs):
         train(epoch, net, trainloader, device, optimizer, scheduler,
               loss_fn, args.max_grad_norm)
         test(epoch, net, testloader, device, loss_fn, args.num_samples)
