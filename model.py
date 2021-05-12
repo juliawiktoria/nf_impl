@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from layers import ActivationNormalisation, AffineCoupling, Invertible1x1Conv
+from layers import ActivationNormalisation, AffineCoupling, Invertible1x1Conv, Invertible1x1ConvLU
 
 
 class GlowModel(nn.Module):
@@ -88,7 +88,8 @@ class _FlowStep(nn.Module):
 
         # Activation normalization, invertible 1x1 convolution, affine coupling
         self.normalisation = ActivationNormalisation(in_channels)
-        self.convolution = Invertible1x1Conv(in_channels)
+        self.convolution = Invertible1x1ConvLU(in_channels)
+        # self.convolution = Invertible1x1Conv(in_channels)
         self.coupling = AffineCoupling(in_channels // 2, mid_channels)
 
     def forward(self, x, sldj=None, reverse=False):

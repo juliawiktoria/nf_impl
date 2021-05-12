@@ -148,3 +148,36 @@ class CNN(nn.Module):
         x = self.out_conv(x)
 
         return x
+
+
+class Invertible1x1ConvLU(nn.Module):
+    # https://github.com/karpathy/pytorch-normalizing-flows/blob/master/nflib/flows.py
+    def __init__(self, num_channels):
+        super(Invertible1x1ConvLU, self).__init__()
+        self.num_channels = num_channels
+        Q = torch.nn.init.orthogonal_(torch.randn(num_channels, num_channels))
+        P, L, U = torch.lu_unpack(*Q.lu())
+        self.P = P # remains fixed during optimization
+        self.L = nn.Parameter(L) # lower triangular portion
+        self.S = nn.Parameter(U.diag()) # "crop out" the diagonal to its own parameter
+        self.U = nn.Parameter(torch.triu(U, diagonal=1)) # "crop out" diagonal, stored in S
+
+    def _assemble_W(self):
+        """ assemble W from its pieces (P, L, U, S) """
+        L = torch.tril(self.L, diagonal=-1) + torch.diag(torch.ones(self.num_channels))
+        U = torch.triu(self.U, diagonal=1)
+        W = self.P @ L @ (U + torch.diag(self.S))
+        return W
+
+    def forward(self, x):
+        W = self._assemble_W()
+        z = x @ W
+        log_det = torch.sum(torch.log(torch.abs(self.S)))
+        return z, log_det
+
+    def backward(self, z):
+        W = self._assemble_W()
+        W_inv = torch.inverse(W)
+        x = z @ W_inv
+        log_det = -torch.sum(torch.log(torch.abs(self.S)))
+        return x, log_det
