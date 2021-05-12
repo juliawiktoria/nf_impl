@@ -14,27 +14,39 @@ import torch.optim.lr_scheduler as sched
 import torchvision
 
 from model import GlowModel
-from utilities import *
-from dataset import *
+import utilities
+from dataset import get_dataset
 from tqdm import tqdm
 
 
 @torch.enable_grad()
-def train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, max_grad_norm):
+def train(epoch, model, trainloader, device, optimizer, scheduler, loss_function, max_grad_norm):
+    print("\t-> TRAIN")
     global global_step
-    print('\nEpoch: %d' % epoch)
+    # initialising training mode; just so the model "knows" it is training
     model.train()
+    # initialising counter for loss calculations
     loss_meter = utilities.AvgMeter()
+
+    # fancy progress bar
     with tqdm(total=len(trainloader.dataset)) as progress_bar:
         for x, _ in trainloader:
             x = x.to(device)
             optimizer.zero_grad()
-            z, sldj = model(x, reverse=False)
-            loss = loss_fn(z, sldj)
+            # forward pass so reverse mode is turned off
+            output, sldj = model(x, reverse=False)
+
+            # calculating and updating loss
+            loss = loss_function(output, sldj)
             loss_meter.update(loss.item(), x.size(0))
+            # backprop loss
             loss.backward()
+            
+            # clip gradient if too much
             if max_grad_norm > 0:
                 utilities.clip_grad_norm(optimizer, max_grad_norm)
+            
+            # advance optimizer and scheduler and update parameters
             optimizer.step()
             scheduler.step(global_step)
 
@@ -42,24 +54,26 @@ def train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, max_
                                      bpd=utilities.bits_per_dimension(x, loss_meter.avg),
                                      lr=optimizer.param_groups[0]['lr'])
             progress_bar.update(x.size(0))
+
+            # updating the global step using the batch size used for training
             global_step += x.size(0)
 
 
 @torch.no_grad()
-def test(epoch, model, testloader, device, loss_fn, args):
+def test(epoch, model, testloader, device, loss_function, args):
+    print("\t-> TEST")
     global best_loss
-    model.eval()
+    # setting a flag for indicating if this epoch is best ever
     best = False
+    model.eval()
     loss_meter = utilities.AvgMeter()
-    with tqdm(total=len(testloader.dataset)) as progress_bar:
-        for x, _ in testloader:
-            x = x.to(device)
-            z, sldj = model(x, reverse=False)
-            loss = loss_fn(z, sldj)
-            loss_meter.update(loss.item(), x.size(0))
-            progress_bar.set_postfix(nll=loss_meter.avg,
-                                     bpd=utilities.bits_per_dimension(x, loss_meter.avg))
-            progress_bar.update(x.size(0))
+
+    # testing is shorter so the progress bar is taken out
+    for x, _ in testloader:
+        x = x.to(device)
+        output, sldj = model(x, reverse=False)
+        test_loss = loss_function(output, sldj)
+        loss_meter.update(test_loss.item(), x.size(0))
 
     # Save checkpoint
     if loss_meter.avg < best_loss:

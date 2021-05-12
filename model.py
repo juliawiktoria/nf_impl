@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from layers import ActivationNormalisation, AffineCoupling, Invertible1x1Conv
 
 
-class Glow(nn.Module):
+class GlowModel(nn.Module):
     def __init__(self, num_channels, num_levels, num_steps):
-        super(Glow, self).__init__()
+        super(GlowModel, self).__init__()
 
         # Use bounds to rescale images before converting to logits, not learned
         self.register_buffer('bounds', torch.tensor([0.9], dtype=torch.float32))
