@@ -169,15 +169,14 @@ class Invertible1x1ConvLU(nn.Module):
         W = self.P @ L @ (U + torch.diag(self.S))
         return W
 
-    def forward(self, x):
-        W = self._assemble_W()
-        z = x @ W
-        log_det = torch.sum(torch.log(torch.abs(self.S)))
+    def forward(self, x, reverse=False):
+        if not reverse:
+            W = self._assemble_W()
+            z = x @ W
+            log_det = torch.sum(torch.log(torch.abs(self.S)))
+        else:
+            W = self._assemble_W()
+            W_inv = torch.inverse(W)
+            z = x @ W_inv
+            log_det = -torch.sum(torch.log(torch.abs(self.S)))
         return z, log_det
-
-    def backward(self, z):
-        W = self._assemble_W()
-        W_inv = torch.inverse(W)
-        x = z @ W_inv
-        log_det = -torch.sum(torch.log(torch.abs(self.S)))
-        return x, log_det
