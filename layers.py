@@ -5,31 +5,6 @@ import torch.nn.functional as F
 
 import utilities
 
-class Invertible1x1Conv(nn.Module):
-    def __init__(self, num_channels):
-        super(Invertible1x1Conv, self).__init__()
-        self.num_channels = num_channels
-
-        # Initialize with a random orthogonal matrix
-        w_init = np.random.randn(num_channels, num_channels)
-        w_init = np.linalg.qr(w_init)[0].astype(np.float32)
-        self.weight = nn.Parameter(torch.from_numpy(w_init))
-
-    def forward(self, x, sldj, reverse=False):
-        ldj = torch.slogdet(self.weight)[1] * x.size(2) * x.size(3)
-
-        if reverse:
-            weight = torch.inverse(self.weight.double()).float()
-            sldj = sldj - ldj
-        else:
-            weight = self.weight
-            sldj = sldj + ldj
-
-        weight = weight.view(self.num_channels, self.num_channels, 1, 1)
-        z = F.conv2d(x, weight)
-
-        return z, sldj
-
 class ActivationNormalisation(nn.Module):
     def __init__(self, num_features, scale=1.):
         super(ActivationNormalisation, self).__init__()
@@ -89,10 +64,10 @@ class ActivationNormalisation(nn.Module):
         return x, ldj
 
 class AffineCoupling(nn.Module):
-    def __init__(self, in_channels, mid_channels):
+    def __init__(self, num_features, mid_channels):
         super(AffineCoupling, self).__init__()
-        self.network = CNN(in_channels, mid_channels, 2 * in_channels)
-        self.scale = nn.Parameter(torch.ones(in_channels, 1, 1))
+        self.network = CNN(num_features, mid_channels, 2 * num_features)
+        self.scale = nn.Parameter(torch.ones(num_features, 1, 1))
 
     def forward(self, x, ldj, reverse=False):
         x_change, x_id = x.chunk(2, dim=1)
@@ -149,50 +124,31 @@ class CNN(nn.Module):
 
         return x
 
+class Squeeze(nn.Module):
+    def __init__(self):
+        super(Squeeze, self).__init__()
 
-# class Invertible1x1ConvLU(nn.Module):
-#     # https://github.com/karpathy/pytorch-normalizing-flows/blob/master/nflib/flows.py
-#     def __init__(self, num_channels):
-#         super(Invertible1x1ConvLU, self).__init__()
-#         self.num_channels = num_channels
-#         Q = torch.nn.init.orthogonal_(torch.randn(num_channels, num_channels))
-#         P, L, U = torch.lu_unpack(*Q.lu())
-#         self.P = P # remains fixed during optimization
-#         self.L = nn.Parameter(L) # lower triangular portion
-#         self.S = nn.Parameter(U.diag()) # "crop out" the diagonal to its own parameter
-#         self.U = nn.Parameter(torch.triu(U, diagonal=1)) # "crop out" diagonal, stored in S
+    def forward(self, x, reverse=False):
+        b, c, h, w = x.size()
+        if not reverse:
+            # Squeeze
+            x = x.view(b, c, h // 2, 2, w // 2, 2)
+            x = x.permute(0, 1, 3, 5, 2, 4).contiguous()
+            x = x.view(b, c * 2 * 2, h // 2, w // 2)
+        else:
+            # Unsqueeze
+            x = x.view(b, c // 4, 2, 2, h, w)
+            x = x.permute(0, 1, 4, 2, 5, 3).contiguous()
+            x = x.view(b, c // 4, h * 2, w * 2)
 
-#     def _assemble_W(self, x):
-#         """ assemble W from its pieces (P, L, U, S) """
-#         print('self.s type: {}\t self.s devodce: {}'.format(type(self.S), self.S.device))
-#         L = torch.tril(self.L, diagonal=-1) + torch.diag(torch.ones(self.num_channels, device=x.device))
-#         print('l type: {}\t l devodce: {}'.format(type(L), L.device))
-#         U = torch.triu(self.U, diagonal=1).to(x.device)
-#         print('u type: {}\t u devodce: {}'.format(type(U), U.device))
-#         print('self.P type: {}\t self.P devodce: {}'.format(type(self.P), self.P.device))
-#         W = self.P @ L @ (U + torch.diag(self.S))
-#         return W
-
-#     def forward(self, x, sldj, reverse=False):
-#         if not reverse:
-#             W = self._assemble_W(x)
-#             z = x @ W
-#             log_det = torch.sum(torch.log(torch.abs(self.S)))
-#             sldj = sldj + log_det
-#         else:
-#             W = self._assemble_W()
-#             W_inv = torch.inverse(W)
-#             z = x @ W_inv
-#             log_det = -torch.sum(torch.log(torch.abs(self.S)))
-#             sldj = sldj - log_det
-#         return z, sldj
+        return x
 
 class Invertible1x1ConvLU(nn.Module):
-    def __init__(self, num_channels):
+    # https://github.com/y0ast/Glow-PyTorch/blob/master/modules.py
+    def __init__(self, num_features):
         super(Invertible1x1ConvLU, self).__init__()
-        w_shape = [num_channels, num_channels]
+        w_shape = [num_features, num_features]
         w_init = torch.qr(torch.randn(*w_shape))[0]
-
 
         p, lower, upper = torch.lu_unpack(*torch.lu(w_init))
         s = torch.diag(upper)

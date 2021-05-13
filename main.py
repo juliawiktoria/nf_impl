@@ -200,23 +200,25 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     # scheduler takes care of the adjustment of the learning rate
     scheduler = sched.LambdaLR(optimizer, lambda s: min(1., s / args.sched_warmup))
+    
     # run in training mode
     if args.usage_mode == 'train':
         # training loop repeating for a specified number of epochs; starts from #1 in order to start naming epochs from 1
         print("Starting training of the Glow model")
-        for epoch in range(starting_epoch, starting_epoch + args.epochs + 1):
+        for epoch in range(starting_epoch, starting_epoch + args.epochs):
             print("=============> EPOCH [{} / {}]".format(epoch, args.epochs))
             
             # each epoch consist of training part and testing part
             train(epoch, model, trainloader, device, optimizer, scheduler, loss_fn, args.max_grad_norm)
             test(epoch, model, testloader, device, loss_fn, args)
+
         print("the training is finished.")
     # run in sampling mode
     elif args.usage_mode == 'sample':
         print('sampling')
-        images = sample(model, device, args)
+        images = utilities.sample(model, device, args)
         path_to_images = 'samples/{}/epoch_{}'.format(args.dataset, starting_epoch) # custom name for each epoch
-        save_sampled_images(starting_epoch, images, args.num_samples, path_to_images, if_grid=True)
+        utilities.save_sampled_images(starting_epoch, images, args.num_samples, path_to_images, if_grid=True)
     # incorrect mode
     else:
         model.describe()

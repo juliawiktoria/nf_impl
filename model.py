@@ -6,13 +6,13 @@ from layers import ActivationNormalisation, AffineCoupling, Invertible1x1Conv, I
 
 
 class GlowModel(nn.Module):
-    def __init__(self, num_channels, num_levels, num_steps):
+    def __init__(self, num_features, hid_layers, num_levels, num_steps):
         super(GlowModel, self).__init__()
 
         # Use bounds to rescale images before converting to logits, not learned
         self.register_buffer('bounds', torch.tensor([0.9], dtype=torch.float32))
-        self.flows = _Glow(in_channels=4 * 3,  # RGB image after squeeze
-                           mid_channels=num_channels,
+        self.levels = _Level(num_features=4 * num_features,  # RGB image after squeeze
+                           hid_layers=hid_layers,
                            num_levels=num_levels,
                            num_steps=num_steps)
 
@@ -29,7 +29,7 @@ class GlowModel(nn.Module):
             x, sldj = self._pre_process(x)
 
         x = squeeze(x)
-        x, sldj = self.flows(x, sldj, reverse)
+        x, sldj = self.levels(x, sldj, reverse)
         x = squeeze(x, reverse=True)
 
         return x, sldj
@@ -48,30 +48,31 @@ class GlowModel(nn.Module):
         return y, sldj
 
 
-class _Glow(nn.Module):
-    def __init__(self, in_channels, mid_channels, num_levels, num_steps):
-        super(_Glow, self).__init__()
-        self.steps = nn.ModuleList([_FlowStep(in_channels=in_channels,
-                                              mid_channels=mid_channels)
-                                    for _ in range(num_steps)])
+class _Level(nn.Module):
+    def __init__(self, num_features, hid_layers, num_levels, num_steps):
+        super(_Level, self).__init__()
+        
+        # initialise K flow steps for the level
+        self.steps = nn.ModuleList([_Step(num_features=num_features, hid_layers=hid_layers) for _ in range(num_steps)])
 
+        # keep adding levels recursively until the last one is encountered, then add NONE as a stopper
         if num_levels > 1:
-            self.next = _Glow(in_channels=2 * in_channels,
-                              mid_channels=mid_channels,
+            self.next_lvl = _Level(num_features=2 * num_features,
+                              hid_layers=hid_layers,
                               num_levels=num_levels - 1,
                               num_steps=num_steps)
         else:
-            self.next = None
+            self.next_lvl = None
 
     def forward(self, x, sldj, reverse=False):
         if not reverse:
             for step in self.steps:
                 x, sldj = step(x, sldj, reverse)
 
-        if self.next is not None:
+        if self.next_lvl is not None:
             x = squeeze(x)
             x, x_split = x.chunk(2, dim=1)
-            x, sldj = self.next(x, sldj, reverse)
+            x, sldj = self.next_lvl(x, sldj, reverse)
             x = torch.cat((x, x_split), dim=1)
             x = squeeze(x, reverse=True)
 
@@ -82,21 +83,24 @@ class _Glow(nn.Module):
         return x, sldj
 
 
-class _FlowStep(nn.Module):
-    def __init__(self, in_channels, mid_channels):
-        super(_FlowStep, self).__init__()
+class _Step(nn.Module):
+    def __init__(self, num_features, hid_layers):
+        super(_Step, self).__init__()
 
         # Activation normalization, invertible 1x1 convolution, affine coupling
-        self.normalisation = ActivationNormalisation(in_channels)
-        self.convolution = Invertible1x1ConvLU(in_channels)
-        # self.convolution = Invertible1x1Conv(in_channels)
-        self.coupling = AffineCoupling(in_channels // 2, mid_channels)
+        self.normalisation = ActivationNormalisation(num_features)
+        self.convolution = Invertible1x1ConvLU(num_features)
+        self.coupling = AffineCoupling(num_features // 2, hid_layers)
 
     def forward(self, x, sldj=None, reverse=False):
+
+        # forward pass of the step - [ActivationNormalisation, Inverted1x1ConvLU, AffineCoupling]
         if not reverse:
             x, sldj = self.normalisation(x, sldj, reverse)
             x, sldj = self.convolution(x, sldj, reverse)
             x, sldj = self.coupling(x, sldj, reverse)
+        
+        # reversed pass of the step - [AffineCoupling, Inverted1x1ConvLU, ActivationNormalisation]
         else:
             x, sldj = self.coupling(x, sldj, reverse)
             x, sldj = self.convolution(x, sldj, reverse)
