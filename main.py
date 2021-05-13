@@ -18,14 +18,14 @@ import utilities
 from dataset import get_dataset
 from tqdm import tqdm
 
-
+# enabling gradient calculations
 @torch.enable_grad()
 def train(epoch, model, trainloader, device, optimizer, scheduler, loss_function, max_grad_norm):
     print("\t-> TRAIN")
     global global_step
     # initialising training mode; just so the model "knows" it is training
     model.train()
-    # initialising counter for loss calculations
+    # initialising a counter for loss calculations over the course of the training function, allows for storing all data about loss in one object
     loss_meter = utilities.AvgMeter()
 
     # fancy progress bar
@@ -58,7 +58,7 @@ def train(epoch, model, trainloader, device, optimizer, scheduler, loss_function
             # updating the global step using the batch size used for training
             global_step += x.size(0)
 
-
+# no gradient needed in the testing function since no weights are updated here
 @torch.no_grad()
 def test(epoch, model, testloader, device, loss_function, args):
     print("\t-> TEST")
@@ -66,6 +66,7 @@ def test(epoch, model, testloader, device, loss_function, args):
     # setting a flag for indicating if this epoch is best ever
     best = False
     model.eval()
+    # initialising a counter for loss calculations over the course of the testing function, allows for storing all data about loss in one object
     loss_meter = utilities.AvgMeter()
 
     # testing is shorter so the progress bar is taken out
@@ -136,9 +137,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    best_loss = math.inf
-    global_step = 0
-
     # Set up main device and scale batch size
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -153,6 +151,8 @@ if __name__ == '__main__':
         args.num_features = 1
         args.img_height = 28
         args.img_width = 28
+        # since mnist is not RGB and has only 1 channel, the model cannot have more than 2 levels; possibly fix in the future
+        args.num_levels = 2
     elif args.dataset == 'chest_xray':
         args.num_features = 3
         args.img_height = 32
@@ -163,6 +163,7 @@ if __name__ == '__main__':
     # Model
     model = GlowModel(num_features=args.num_features, hid_layers=args.hidden_layers, num_levels=args.num_levels, num_steps=args.num_steps)
     model = model.to(device)
+    # visual description of the structure of the model that was created
     model.describe()
 
     start_epoch = 0
@@ -188,9 +189,11 @@ if __name__ == '__main__':
     else:
         # if training from scratch then init default values
         # initialising variables for keeping track of the global step and the best loss so far
+        # how many batches of data in total were processed
         global_step = 0
+        # setting current best achieved loss to infinity so that it can be improved as the model trains
         best_loss = math.inf
-        # best_loss = 0
+        # epochs start from 1 because it like it
         starting_epoch = 1
 
     loss_fn = utilities.NLLLoss().to(device)
@@ -216,7 +219,7 @@ if __name__ == '__main__':
         print('sampling')
         images = utilities.sample(model, device, args)
         path_to_images = 'samples/{}/epoch_{}'.format(args.dataset, starting_epoch) # custom name for each epoch
-        utilities.save_sampled_images(starting_epoch, images, args.num_samples, path_to_images, if_grid=True)
+        utilities.save_sampled_images(starting_epoch, images, args.num_samples, path_to_images)
     # incorrect mode
     else:
         model.describe()
