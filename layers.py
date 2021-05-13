@@ -164,8 +164,8 @@ class Invertible1x1ConvLU(nn.Module):
 
     def _assemble_W(self, x):
         """ assemble W from its pieces (P, L, U, S) """
-        L = torch.tril(self.L, diagonal=-1) + torch.diag(torch.ones(self.num_channels, device=x.device))
-        U = torch.triu(self.U, diagonal=1)
+        L = torch.tril(self.L, diagonal=-1, device=x.device) + torch.diag(torch.ones(self.num_channels, device=x.device))
+        U = torch.triu(self.U, diagonal=1, device=x.device)
         W = self.P @ L @ (U + torch.diag(self.S))
         return W
 
