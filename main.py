@@ -162,9 +162,7 @@ if __name__ == '__main__':
 
     # Model
     print('Building model..')
-    model = GlowModel(num_channels=args.hidden_layers,
-               num_levels=args.num_levels,
-               num_steps=args.num_steps)
+    model = GlowModel(num_features=args.num_features, hid_layers=args.hidden_layers, num_levels=args.num_levels, num_steps=args.num_steps)
     model = model.to(device)
 
     start_epoch = 0
