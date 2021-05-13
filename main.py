@@ -218,7 +218,8 @@ if __name__ == '__main__':
         print('sampling')
         images = utilities.sample(model, device, args)
         path_to_images = 'samples/{}/epoch_{}'.format(args.dataset, starting_epoch) # custom name for each epoch
-        utilities.save_sampled_images(starting_epoch, images, args.num_samples, path_to_images)
+        path_to_grids = 'grids_{}'.format(args.dataset)
+        utilities.save_sampled_images(starting_epoch, images, args.num_samples, path_to_images, path_to_grids)
     # incorrect mode
     else:
         model.describe()
