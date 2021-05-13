@@ -91,7 +91,7 @@ def save_sampled_images(epoch, imgs, num_samples, saving_pth, grid_pth):
         torchvision.utils.save_image(imgs[i, :, :, :], '{}/img_{}.png'.format(saving_pth, i))
 
 def save_model_checkpoint(model, epoch, dataset_name, avg_loss, best=False):
-    os.makedirs('ckpts_{}'.format(dataset_name))
+    os.makedirs('ckpts_{}'.format(dataset_name), exist_ok=True)
     # just overwrite a file to know which checkpoint is the best
     if best:
         with open('best_{}_checkpoint.txt'.format(dataset_name), 'w') as file:
