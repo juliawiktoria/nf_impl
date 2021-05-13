@@ -30,11 +30,12 @@ def train(epoch, model, trainloader, device, optimizer, scheduler, loss_function
 
     # fancy progress bar
     with tqdm(total=len(trainloader.dataset)) as progress_bar:
-        for x, _ in trainloader:
+        for x, x_cond in trainloader:
             x = x.to(device)
+            x_cond = x_cond.to(device)
             optimizer.zero_grad()
             # forward pass so reverse mode is turned off
-            output, sldj = model(x, reverse=False)
+            output, sldj = model(x, x_cond, reverse=False)
 
             # calculating and updating loss
             loss = loss_function(output, sldj)
@@ -70,9 +71,10 @@ def test(epoch, model, testloader, device, loss_function, args):
     loss_meter = utilities.AvgMeter()
 
     # testing is shorter so the progress bar is taken out
-    for x, _ in testloader:
+    for x, x_cond in testloader:
         x = x.to(device)
-        output, sldj = model(x, reverse=False)
+        x_cond = x_cond.to(device)
+        output, sldj = model(x, x_cond, reverse=False)
         test_loss = loss_function(output, sldj)
         loss_meter.update(test_loss.item(), x.size(0))
 
