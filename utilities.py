@@ -97,7 +97,7 @@ def save_model_checkpoint(model, epoch, dataset_name, avg_loss, best=False):
         with open('best_{}_checkpoint.txt'.format(dataset_name), 'w') as file:
           file.write('Epoch with the best loss: {}'.format(epoch))
     # saving model in the current epoch to a file
-    file_name = "{}_checkpoint_epoch_{}.pth".format(dataset_name, epoch)
+    file_name = "{}_checkpoint_epoch_{}.pth.tar".format(dataset_name, epoch)
     torch.save({'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'best_loss': avg_loss}, 'ckpts_{}/{}'.format(dataset_name, file_name))
