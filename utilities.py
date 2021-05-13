@@ -90,18 +90,17 @@ def save_sampled_images(epoch, imgs, num_samples, saving_pth, grid_pth):
     for i in range(imgs.size(0)):
         torchvision.utils.save_image(imgs[i, :, :, :], '{}/img_{}.png'.format(saving_pth, i))
 
-
 def save_model_checkpoint(model, epoch, dataset_name, avg_loss, best=False):
     os.makedirs('ckpts_{}'.format(dataset_name))
-  # just overwrite a file to know which checkpoint is the best
+    # just overwrite a file to know which checkpoint is the best
     if best:
         with open('best_{}_checkpoint.txt'.format(dataset_name), 'w') as file:
           file.write('Epoch with the best loss: {}'.format(epoch))
     # saving model in the current epoch to a file
     file_name = "{}_checkpoint_epoch_{}.pth".format(dataset_name, epoch)
     torch.save({'epoch': epoch,
-                'state_dict': model.state_dict(),
-                'test_loss': avg_loss}, 'ckpts_{}/{}'.format(dataset_name, file_name))
+                'model_state_dict': model.state_dict(),
+                'best_loss': avg_loss}, 'ckpts_{}/{}'.format(dataset_name, file_name))
     print("model saved to a file named {}".format(file_name))
 
 # ======================== DEBUGGING =======================

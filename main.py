@@ -179,10 +179,8 @@ if __name__ == '__main__':
         # use save cofiguration
         else:
             checkpoint_loaded = torch.load(args.ckpt_path)
-            model.load_state_dict(checkpoint_loaded['state_dict'])
-            optimizer.load_state_dict(checkpoint_loaded['optim'])
-            scheduler.load_state_dict(checkpoint_loaded['sched'])
-            best_loss = checkpoint_loaded['test_loss']
+            model.load_state_dict(checkpoint_loaded['model_state_dict'])
+            best_loss = checkpoint_loaded['best_loss']
             starting_epoch = checkpoint_loaded['epoch']
             global_step = starting_epoch * len(trainset)
             print('Loading checkpoint file with best loss: {}, starting epoch: {}, and global step: {}'.format(best_loss, starting_epoch, global_step))
