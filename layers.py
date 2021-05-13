@@ -17,7 +17,7 @@ class ActivationNormalisation(nn.Module):
         self.eps = 1e-6
 
     def describe(self):
-        print('\t\t\t - > Act Norm with {} num_features; bias: {}; logs: {}'.format(self.num_features))
+        print('\t\t\t - > Act Norm with {} num_features.'.format(self.num_features))
 
     def initialize_parameters(self, x):
         if not self.training:
