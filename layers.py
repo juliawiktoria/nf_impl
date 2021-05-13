@@ -69,6 +69,7 @@ class ActivationNormalisation(nn.Module):
 class AffineCoupling(nn.Module):
     def __init__(self, num_features, mid_channels):
         super(AffineCoupling, self).__init__()
+        self.num_features = num_features
         self.network = CNN(num_features, mid_channels, 2 * num_features)
         self.scale = nn.Parameter(torch.ones(num_features, 1, 1))
 
