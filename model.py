@@ -7,14 +7,14 @@ from layers import *
 # add a posibility of creating a transform list instead of hard-coded ones
 # class for building GlowModel, not to be used on its own
 class _Step(nn.Module):
-    def __init__(self, num_features, hid_layers, step_number):
+    def __init__(self, num_features, hid_layers, step_num):
         super(_Step, self).__init__()
 
-        self.step_id = step_number
+        self.step_id = step_num
         # add transforms to a step
         self.normalisation = ActivationNormalisation(num_features)
         # every other step the convolution is LU decomposed
-        self.convolution = Invertible1x1ConvLU(num_features, LU_decomposed=(step_number % 2 ==0))
+        self.convolution = Invertible1x1ConvLU(num_features, LU_decomposed=(step_num % 2 ==0))
         self.coupling = AffineCoupling(num_features // 2, hid_layers)
 
     def describe(self):
