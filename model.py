@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from layers import ActivationNormalisation, AffineCoupling, Invertible1x1Conv, Invertible1x1ConvLU
+from layers import *
 
 
 class GlowModel(nn.Module):
@@ -16,6 +16,8 @@ class GlowModel(nn.Module):
                            num_levels=num_levels,
                            num_steps=num_steps)
 
+        self.squeeze = Squeeze()
+
     def forward(self, x, reverse=False):
         if reverse:
             sldj = torch.zeros(x.size(0), device=x.device)
@@ -28,9 +30,9 @@ class GlowModel(nn.Module):
             # De-quantize and convert to logits
             x, sldj = self._pre_process(x)
 
-        x = squeeze(x)
+        x = self.squeeze(x)
         x, sldj = self.levels(x, sldj, reverse)
-        x = squeeze(x, reverse=True)
+        x = self.squeeze(x, reverse=True)
 
         return x, sldj
 
@@ -64,17 +66,19 @@ class _Level(nn.Module):
         else:
             self.next_lvl = None
 
+        self.squeeze = Squeeze()
+
     def forward(self, x, sldj, reverse=False):
         if not reverse:
             for step in self.steps:
                 x, sldj = step(x, sldj, reverse)
 
         if self.next_lvl is not None:
-            x = squeeze(x)
+            x = self.squeeze(x)
             x, x_split = x.chunk(2, dim=1)
             x, sldj = self.next_lvl(x, sldj, reverse)
             x = torch.cat((x, x_split), dim=1)
-            x = squeeze(x, reverse=True)
+            x = self.squeeze(x, reverse=True)
 
         if reverse:
             for step in reversed(self.steps):
@@ -107,19 +111,3 @@ class _Step(nn.Module):
             x, sldj = self.normalisation(x, sldj, reverse)
 
         return x, sldj
-
-
-def squeeze(x, reverse=False):
-    b, c, h, w = x.size()
-    if reverse:
-        # Unsqueeze
-        x = x.view(b, c // 4, 2, 2, h, w)
-        x = x.permute(0, 1, 4, 2, 5, 3).contiguous()
-        x = x.view(b, c // 4, h * 2, w * 2)
-    else:
-        # Squeeze
-        x = x.view(b, c, h // 2, 2, w // 2, 2)
-        x = x.permute(0, 1, 3, 5, 2, 4).contiguous()
-        x = x.view(b, c * 2 * 2, h // 2, w // 2)
-
-    return x
