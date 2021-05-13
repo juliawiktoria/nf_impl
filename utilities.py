@@ -81,17 +81,18 @@ def sample(model, device, args):
 
 # ===================== SAVING IMAGES AND CHECKPOINTS ====================
 
-def save_sampled_images(epoch, imgs, num_samples, saving_pth):
+def save_sampled_images(epoch, imgs, num_samples, saving_pth, grid_pth):
     os.makedirs(saving_pth, exist_ok=True) # create a dir for each epoch
     # save a grid of images in a pre-made directory, this one is not custom, maybe in the future
     image_grid = torchvision.utils.make_grid(imgs, nrow=4, padding=2, pad_value=255)
-    torchvision.utils.save_image(image_grid, 'grids/grid_{}.png'.format(epoch))
+    torchvision.utils.save_image(image_grid, '{}/grid_{}.png'.format(grid_pth, epoch))
     # save every image separately
     for i in range(imgs.size(0)):
         torchvision.utils.save_image(imgs[i, :, :, :], '{}/img_{}.png'.format(saving_pth, i))
 
 
 def save_model_checkpoint(model, epoch, dataset_name, avg_loss, best=False):
+    os.makedirs('ckpts_{}'.format(dataset_name))
   # just overwrite a file to know which checkpoint is the best
     if best:
         with open('best_{}_checkpoint.txt'.format(dataset_name), 'w') as file:
@@ -100,7 +101,7 @@ def save_model_checkpoint(model, epoch, dataset_name, avg_loss, best=False):
     file_name = "{}_checkpoint_epoch_{}.pth".format(dataset_name, epoch)
     torch.save({'epoch': epoch,
                 'state_dict': model.state_dict(),
-                'test_loss': avg_loss}, file_name)
+                'test_loss': avg_loss}, 'ckpts_{}/{}'.format(dataset_name, file_name))
     print("model saved to a file named {}".format(file_name))
 
 # ======================== DEBUGGING =======================
