@@ -249,7 +249,7 @@ class Coupling(nn.Module):
         super(Coupling, self).__init__()
         self.nn = NN(in_channels, cond_channels, mid_channels, 2 * in_channels)
         self.scale = nn.Parameter(torch.ones(in_channels, 1, 1))
-
+        self.num_features = in_channels
     def describe(self):
         print('\t\t\t - > Coonditional Coupling with {} num_features'.format(self.num_features))
         
