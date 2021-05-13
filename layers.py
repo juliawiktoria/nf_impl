@@ -162,16 +162,16 @@ class Invertible1x1ConvLU(nn.Module):
         self.S = nn.Parameter(U.diag()) # "crop out" the diagonal to its own parameter
         self.U = nn.Parameter(torch.triu(U, diagonal=1)) # "crop out" diagonal, stored in S
 
-    def _assemble_W(self):
+    def _assemble_W(self, x):
         """ assemble W from its pieces (P, L, U, S) """
-        L = torch.tril(self.L, diagonal=-1) + torch.diag(torch.ones(self.num_channels))
+        L = torch.tril(self.L, diagonal=-1) + torch.diag(torch.ones(self.num_channels, device=x.device))
         U = torch.triu(self.U, diagonal=1)
         W = self.P @ L @ (U + torch.diag(self.S))
         return W
 
     def forward(self, x, sldj, reverse=False):
         if not reverse:
-            W = self._assemble_W()
+            W = self._assemble_W(x)
             z = x @ W
             log_det = torch.sum(torch.log(torch.abs(self.S)))
             sldj = sldj + log_det
