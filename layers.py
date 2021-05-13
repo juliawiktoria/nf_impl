@@ -250,6 +250,10 @@ class Coupling(nn.Module):
         self.nn = NN(in_channels, cond_channels, mid_channels, 2 * in_channels)
         self.scale = nn.Parameter(torch.ones(in_channels, 1, 1))
 
+    def describe(self):
+        if self.if_LU:
+            print('\t\t\t - > Coonditional Coupling with {} num_features'.format(self.num_features))
+        
     def forward(self, x, x_cond, ldj, reverse=False):
         x_change, x_id = x.chunk(2, dim=1)
 
