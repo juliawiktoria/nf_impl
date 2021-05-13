@@ -156,6 +156,8 @@ class Invertible1x1ConvLU(nn.Module):
         w_shape = [num_features, num_features]
         w_init = torch.qr(torch.randn(*w_shape))[0]
 
+        self.num_features = num_features
+
         if not LU_decomposed:
             self.weight = nn.Parameter(torch.Tensor(w_init))
         else:
