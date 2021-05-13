@@ -150,39 +150,105 @@ class CNN(nn.Module):
         return x
 
 
+# class Invertible1x1ConvLU(nn.Module):
+#     # https://github.com/karpathy/pytorch-normalizing-flows/blob/master/nflib/flows.py
+#     def __init__(self, num_channels):
+#         super(Invertible1x1ConvLU, self).__init__()
+#         self.num_channels = num_channels
+#         Q = torch.nn.init.orthogonal_(torch.randn(num_channels, num_channels))
+#         P, L, U = torch.lu_unpack(*Q.lu())
+#         self.P = P # remains fixed during optimization
+#         self.L = nn.Parameter(L) # lower triangular portion
+#         self.S = nn.Parameter(U.diag()) # "crop out" the diagonal to its own parameter
+#         self.U = nn.Parameter(torch.triu(U, diagonal=1)) # "crop out" diagonal, stored in S
+
+#     def _assemble_W(self, x):
+#         """ assemble W from its pieces (P, L, U, S) """
+#         print('self.s type: {}\t self.s devodce: {}'.format(type(self.S), self.S.device))
+#         L = torch.tril(self.L, diagonal=-1) + torch.diag(torch.ones(self.num_channels, device=x.device))
+#         print('l type: {}\t l devodce: {}'.format(type(L), L.device))
+#         U = torch.triu(self.U, diagonal=1).to(x.device)
+#         print('u type: {}\t u devodce: {}'.format(type(U), U.device))
+#         print('self.P type: {}\t self.P devodce: {}'.format(type(self.P), self.P.device))
+#         W = self.P @ L @ (U + torch.diag(self.S))
+#         return W
+
+#     def forward(self, x, sldj, reverse=False):
+#         if not reverse:
+#             W = self._assemble_W(x)
+#             z = x @ W
+#             log_det = torch.sum(torch.log(torch.abs(self.S)))
+#             sldj = sldj + log_det
+#         else:
+#             W = self._assemble_W()
+#             W_inv = torch.inverse(W)
+#             z = x @ W_inv
+#             log_det = -torch.sum(torch.log(torch.abs(self.S)))
+#             sldj = sldj - log_det
+#         return z, sldj
+
 class Invertible1x1ConvLU(nn.Module):
-    # https://github.com/karpathy/pytorch-normalizing-flows/blob/master/nflib/flows.py
     def __init__(self, num_channels):
         super(Invertible1x1ConvLU, self).__init__()
-        self.num_channels = num_channels
-        Q = torch.nn.init.orthogonal_(torch.randn(num_channels, num_channels))
-        P, L, U = torch.lu_unpack(*Q.lu())
-        self.P = P # remains fixed during optimization
-        self.L = nn.Parameter(L) # lower triangular portion
-        self.S = nn.Parameter(U.diag()) # "crop out" the diagonal to its own parameter
-        self.U = nn.Parameter(torch.triu(U, diagonal=1)) # "crop out" diagonal, stored in S
+        w_shape = [num_channels, num_channels]
+        w_init = torch.qr(torch.randn(*w_shape))[0]
 
-    def _assemble_W(self, x):
-        """ assemble W from its pieces (P, L, U, S) """
-        print('self.s type: {}\t self.s devodce: {}'.format(type(self.S), self.S.device))
-        L = torch.tril(self.L, diagonal=-1) + torch.diag(torch.ones(self.num_channels, device=x.device))
-        print('l type: {}\t l devodce: {}'.format(type(L), L.device))
-        U = torch.triu(self.U, diagonal=1).to(x.device)
-        print('u type: {}\t u devodce: {}'.format(type(U), U.device))
-        print('self.P type: {}\t self.P devodce: {}'.format(type(self.P), self.P.device))
-        W = self.P @ L @ (U + torch.diag(self.S))
-        return W
 
-    def forward(self, x, sldj, reverse=False):
-        if not reverse:
-            W = self._assemble_W(x)
-            z = x @ W
-            log_det = torch.sum(torch.log(torch.abs(self.S)))
-            sldj = sldj + log_det
+        p, lower, upper = torch.lu_unpack(*torch.lu(w_init))
+        s = torch.diag(upper)
+        sign_s = torch.sign(s)
+        log_s = torch.log(torch.abs(s))
+        upper = torch.triu(upper, 1)
+        l_mask = torch.tril(torch.ones(w_shape), -1)
+        eye = torch.eye(*w_shape)
+
+        self.register_buffer("p", p)
+        self.register_buffer("sign_s", sign_s)
+        self.lower = nn.Parameter(lower)
+        self.log_s = nn.Parameter(log_s)
+        self.upper = nn.Parameter(upper)
+        self.l_mask = l_mask
+        self.eye = eye
+
+        self.w_shape = w_shape
+
+    def get_weight(self, input, reverse):
+        b, c, h, w = input.shape
+
+        self.l_mask = self.l_mask.to(input.device)
+        self.eye = self.eye.to(input.device)
+
+        lower = self.lower * self.l_mask + self.eye
+
+        u = self.upper * self.l_mask.transpose(0, 1).contiguous()
+        u += torch.diag(self.sign_s * torch.exp(self.log_s))
+
+        dlogdet = torch.sum(self.log_s) * h * w
+
+        if reverse:
+            u_inv = torch.inverse(u)
+            l_inv = torch.inverse(lower)
+            p_inv = torch.inverse(self.p)
+
+            weight = torch.matmul(u_inv, torch.matmul(l_inv, p_inv))
         else:
-            W = self._assemble_W()
-            W_inv = torch.inverse(W)
-            z = x @ W_inv
-            log_det = -torch.sum(torch.log(torch.abs(self.S)))
-            sldj = sldj - log_det
-        return z, sldj
+            weight = torch.matmul(self.p, torch.matmul(lower, u))
+
+        return weight.view(self.w_shape[0], self.w_shape[1], 1, 1), dlogdet
+
+    def forward(self, input, logdet=None, reverse=False):
+        """
+        log-det = log|abs(|W|)| * pixels
+        """
+        weight, dlogdet = self.get_weight(input, reverse)
+
+        if not reverse:
+            z = F.conv2d(input, weight)
+            if logdet is not None:
+                logdet = logdet + dlogdet
+            return z, logdet
+        else:
+            z = F.conv2d(input, weight)
+            if logdet is not None:
+                logdet = logdet - dlogdet
+            return z, logdet
