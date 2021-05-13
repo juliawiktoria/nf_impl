@@ -71,8 +71,11 @@ def clip_grad_norm(optimizer, max_norm, norm_type=2):
 # ===================== SAMPLING =============================================
 @torch.no_grad()
 def sample(model, device, args):
+    # getting a sample in the size of the desired image from a normal Gaussian distribution 
     sampled_tensor = torch.randn((args.num_samples, args.num_features, args.img_height, args.img_width), dtype=torch.float32, device=device)
+    # propagating the sample through the reversed model
     x, _ = model(sampled_tensor, reverse=True)
+    # activating the sample using the sigmoid funtion since it was pre-processed to be in the [0, 1] interval
     images = torch.sigmoid(x)
     return images
 
@@ -100,8 +103,12 @@ def save_model_checkpoint(model, epoch, dataset_name, avg_loss, best=False):
                 'test_loss': avg_loss}, file_name)
     print("model saved to a file named {}".format(file_name))
 
+# ======================== DEBUGGING =======================
 
+# a function for checking the flow of the gradient during hte training
+# used for debugging, not in the running code for now
 def plot_grad_flow(named_parameters, step, epoch, after=False):
+    # adapted from https://discuss.pytorch.org/t/check-gradient-flow-in-network/15063
     if after:
         os.makedirs('gradientsafter/epoch_{}'.format(epoch), exist_ok=True)
         saving_name = 'gradientsafter/epoch_{}'.format(epoch)
