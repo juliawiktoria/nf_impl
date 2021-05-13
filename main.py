@@ -91,7 +91,6 @@ def test(epoch, model, testloader, device, loss_function, args):
     # Save samples and data on the specified interval
     if epoch % args.img_interval == 0:
         print("Saving images from the epoch #{}".format(epoch))
-        os.makedirs('grids_{}'.format(args.dataset), exist_ok=True)
         # getting a sample of n images
         images = utilities.sample(model, device, args)
         # creating a path to an epoch directory so the images are sorted by epoch

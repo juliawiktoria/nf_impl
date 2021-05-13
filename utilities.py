@@ -83,6 +83,7 @@ def sample(model, device, args):
 
 def save_sampled_images(epoch, imgs, num_samples, saving_pth, grid_pth):
     os.makedirs(saving_pth, exist_ok=True) # create a dir for each epoch
+    os.makedirs(grid_pth, exist_ok=True) # create a dir for each epoch
     # save a grid of images in a pre-made directory, this one is not custom, maybe in the future
     image_grid = torchvision.utils.make_grid(imgs, nrow=4, padding=2, pad_value=255)
     torchvision.utils.save_image(image_grid, '{}/grid_{}.png'.format(grid_pth, epoch))
