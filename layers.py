@@ -16,6 +16,9 @@ class ActivationNormalisation(nn.Module):
         self.scale = float(scale)
         self.eps = 1e-6
 
+    def describe(self):
+        print('\t\t\t - > Act Norm with {} num_features; bias: {}; logs: {}'.format(self.num_features))
+
     def initialize_parameters(self, x):
         if not self.training:
             return
@@ -68,6 +71,9 @@ class AffineCoupling(nn.Module):
         super(AffineCoupling, self).__init__()
         self.network = CNN(num_features, mid_channels, 2 * num_features)
         self.scale = nn.Parameter(torch.ones(num_features, 1, 1))
+
+    def describe(self):
+        print('\t\t\t - > Aff Coupling with {} num_features'.format(self.num_features))
 
     def forward(self, x, ldj, reverse=False):
         x_change, x_id = x.chunk(2, dim=1)
@@ -171,6 +177,12 @@ class Invertible1x1ConvLU(nn.Module):
         
         self.if_LU = LU_decomposed
         self.w_shape = w_shape
+    
+    def describe(self):
+        if self.if_LU:
+            print('\t\t\t - > Inverted 1x1 Conv (LU decomposition) with {} num_features'.format(self.num_features))
+        else:
+            print('\t\t\t - > Inverted 1x1 Conv with {} num_features'.format(self.num_features))
 
     def get_weight(self, input, reverse):
         b, c, h, w = input.shape

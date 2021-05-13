@@ -161,9 +161,9 @@ if __name__ == '__main__':
         sys.exit('Incorrect dataset name')
 
     # Model
-    print('Building model..')
     model = GlowModel(num_features=args.num_features, hid_layers=args.hidden_layers, num_levels=args.num_levels, num_steps=args.num_steps)
     model = model.to(device)
+    model.describe()
 
     start_epoch = 0
     if args.load_model:
